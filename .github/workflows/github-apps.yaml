@@ -1,0 +1,50 @@
+name: Testing github app actions
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+      # required for accessing files in repository.
+      - name: Setup Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: 3.8
+      - run: pip install -r requirements.txt 
+      - run: |
+          ./get_token.py
+        env: 
+          GH_APP_PRIVATE_KEY:  "${{ secrets.GH_APP_PRIVATE_KEY }}"
+          GH_APP_ID: ${{ secrets.GH_APP_ID }}
+          GH_INSTALLATION_ID: ${{ secrets.GH_INSTALLATION_ID }}
+        id: get-token
+        name: Testing github.com
+      - name: Check out an other repo (github.com)
+        uses: actions/checkout@v3
+        with:
+          repository: my-organization/some-repo
+          token: ${{ steps.get-token.outputs.token }}
+      - run: ls -R
+      - uses: actions/checkout@v3
+      # required for accessing files in repository.
+      - run: |
+          ./get_token.py
+        id: get-token-other-domain
+        name: Testing other-domain.com
+        env:
+          GH_APP_OTHERDOMAIN_PRIVATE_KEY: "${{ secrets.GH_APP_OTHERDOMAIN_PRIVATE_KEY }}"
+          GH_OTHERDOMAIN_APP_ID: ${{ secrets.GH_OTHERDOMAIN_APP_ID }}
+          GH_OTHERDOMAIN_INSTALLATION_ID: ${{ secrets.GH_OTHERDOMAIN_INSTALLATION_ID }}
+      - name: Check out an other repo (other-domain.com)
+        uses: actions/checkout@v3
+        with:
+          repository: my-organization/some-repo
+          token: ${{ steps.get-token-other-domain.outputs.token }}
+          github-server-url: https://github.other-domain.com
+      - run: ls -R
+      - run: git clone https://github.other-domain.com/my-organization/mm-mls-qa.git
+      - run: ls -R
+      - run: git clone https://github.com/my-organization/mm-e2e.git
+      - run: ls -R
+      - run: cat $HOME/.gitconfig
